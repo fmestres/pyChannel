@@ -140,7 +140,3 @@ class TrapezoidalSection(Section):
         y_coord = self.flow_depth * (2 * self.base_width + surface_width) / (3 * (self.base_width + surface_width))
         return x_coord, y_coord
     
-
-trap = CircularSection(0, 0)
-print(trap.area, trap.hydraulic_radius)
-print(trap)
