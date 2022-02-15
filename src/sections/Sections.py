@@ -1,13 +1,20 @@
 from abc import ABC, abstractmethod
-from dataclasses import Field, dataclass
+from ast import arg
+from dataclasses import dataclass
 from functools import cached_property
 import numpy as np
+
 
 @dataclass
 class Section(ABC):
 
-    #Maximum depth of the flow at the cross section
-    flow_depth: float 
+    flow_depth: float #Maximum depth of the flow at the cross section
+
+    def _validate_non_negative_input(self, *args, **kwargs):
+        #Checks arguments are non negative
+        if (any([argument < 0 for argument in args]) 
+            or any([value < 0 for _, value in kwargs.items()])):
+            raise ValueError("Section arguments cannot be negative")
 
     @cached_property
     @abstractmethod
@@ -39,6 +46,9 @@ class RectangularSection(Section):
     
     base_width: float 
 
+    def __init__(self, *args, **kwargs):
+        super()._validate_non_negative_input(*args, **kwargs)
+
     @cached_property
     def area(self) -> float:
         return self.base_width * self.flow_depth
@@ -52,7 +62,6 @@ class RectangularSection(Section):
         try:
             return self.area / self.perimeter
         except ZeroDivisionError:
-            #if perimeter is 0, hydraulic_radius is set to 0
             return 0
 
     @cached_property
@@ -65,15 +74,16 @@ class CircularSection(Section):
     
     radius: float
 
-
-    def __post_init__(self) -> None:
-
+    def __init__(self, *args, **kwargs):
+        super()._validate_non_negative_input(*args, **kwargs)
         if self.flow_depth > 2 * self.radius:
             raise ValueError('flow_depth cannot be greater than the available height (twice the radius of the cross section)')
-            
-        self.compute_central_angle()  
+        
 
-    def compute_central_angle(self) -> None:
+    def __post_init__(self) -> None:
+        self._compute_central_angle()  
+
+    def _compute_central_angle(self) -> None:
         #Computes central angle of section. If radius is 0, central angle is set to 0
         try:
             self.central_angle = 2 * np.arccos((self.radius - self.flow_depth) / self.radius, dtype=float)
@@ -108,6 +118,9 @@ class TrapezoidalSection(Section):
     side_slope_1: float #left
     side_slope_2: float 
 
+    def __init__(self, *args, **kwargs):
+        super()._validate_non_negative_input(*args, **kwargs)
+
     @cached_property
     def area(self) -> float:
         return (self.base_width + 0.5 * self.flow_depth * (self.side_slope_1 + self.side_slope_2)) * self.flow_depth
@@ -139,4 +152,4 @@ class TrapezoidalSection(Section):
         surface_width = self.base_width + self.flow_depth * (self.side_slope_1 + self.side_slope_2)
         y_coord = self.flow_depth * (2 * self.base_width + surface_width) / (3 * (self.base_width + surface_width))
         return x_coord, y_coord
-    
+
