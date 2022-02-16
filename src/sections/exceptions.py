@@ -1,0 +1,2 @@
+class UndefinedFlowDepthException(Exception):
+    pass

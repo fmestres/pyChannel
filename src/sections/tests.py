@@ -16,11 +16,16 @@ test_cases_circular_section_failure = [
     ({'radius': -10, 'flow_depth': 20.0000001}),
     ({'radius': 10, 'flow_depth': -19}),
     ({'radius': -10, 'flow_depth': -20.0000001}),
-    ({'radius': -10, 'flow_depth': 19}),
+    ({'radius': -10, 'flow_depth': 19}),   
+]
+
+test_cases_section_runtime_failure = [
+    (),
+    ()
 ]
 
 @pytest.fixture
-def section(*args, **kwargs):
+def section(*args):
     def _section(section_type: Type[Sections.Section], **kwargs) -> Sections.Section:
         if not issubclass(section_type, Sections.Section):
             raise TypeError(f'{section_type} cannot be a section')
@@ -51,4 +56,5 @@ def test_circular_section_failure(section, test_input):
     #Checks that instantiation fails when depth exceeds maximum height
     with pytest.raises(ValueError):
         section(Sections.CircularSection, **test_input)
+
 
