@@ -30,7 +30,6 @@ class Section(ABC):
         self._perimeter = None
         self._hydraulic_radius = None
         self._centroid = None
-        print('cleaned cache')
 
     def _cache_property_or_compute(self, _property: Any, _compute_function: Callable) -> Any:
         '''Returns cached value for _property. If nothing is cached, then it calculates'''
@@ -41,7 +40,7 @@ class Section(ABC):
     #Validators
     def _validate_flow_depth(self, flow_depth: Optional[float]) -> float:
         if flow_depth is None:
-            raise UndefinedFlowDepthException('"flow_depth" has not been defined')
+            raise UndefinedFlowDepthException()
         if flow_depth < 0:
             raise ValueError('"flow_depth" cannot be negative')
         self._clean_cache()
@@ -84,23 +83,26 @@ class Section(ABC):
     @property
     def area(self) -> float:
         '''Returns cross section area'''
-        return self._cache_property_or_compute(self._area, self._compute_area)
+        self._area = self._cache_property_or_compute(self._area, self._compute_area)
+        return self._area
 
     @property
     def perimeter(self) -> float:
         '''Returns wet perimeter'''
-        return self._cache_property_or_compute(self._perimeter, self._compute_perimeter)
+        self._perimeter = self._cache_property_or_compute(self._perimeter, self._compute_perimeter)
+        return self._perimeter
 
     @property
     def hydraulic_radius(self) -> float:
         '''Returns quotient of area and perimeter. If peremeter is 0, it returns 0'''
-        return self._cache_property_or_compute(self._hydraulic_radius, self._compute_hydraulic_radius)
+        self._hydraulic_radius = self._cache_property_or_compute(self._hydraulic_radius, self._compute_hydraulic_radius)
+        return self._hydraulic_radius
 
     @property
     def centroid(self) -> tuple[float, float]:
         '''Returns the tuple: (<x distance from centroid to leftmost point in the section>, <y depth of the centroid>)'''
-        return self._cache_property_or_compute(self._centroid, self._compute_centroid)
-
+        self._centroid = self._cache_property_or_compute(self._centroid, self._compute_centroid)
+        return self._centroid
 
 class RectangularSection(Section):
     
@@ -116,7 +118,7 @@ class RectangularSection(Section):
         self._clean_cache()
         return base_width
 
-    #Calculate
+    #Class-specific implementations
     def _compute_area(self) -> float:
         return self.base_width * self.flow_depth
 
@@ -160,7 +162,7 @@ class CircularSection(Section):
             raise ValueError('"flow_depth" cannot be greater than the available height (twice the radius of the cross section)')
         return flow_depth
 
-    #Calculate
+    #Class-specific implementations
     def _compute_area(self) -> float:
         if self._central_angle is None:
             self._central_angle = self._compute_central_angle()
@@ -199,7 +201,7 @@ class TrapezoidalSection(Section):
         self._clean_cache()
         return side_slope
 
-    #Calculate
+    #Class-specific implementations
     def _compute_area(self):
         return (self.base_width + 0.5 * self.flow_depth * (self.side_slope_1 + self.side_slope_2)) * self.flow_depth
 
@@ -221,3 +223,7 @@ class TrapezoidalSection(Section):
         y_coord = self.flow_depth * (2 * self.base_width + surface_width) / (3 * (self.base_width + surface_width))
         return x_coord, y_coord
 
+
+trap = TrapezoidalSection(3, 2, 2, 5)
+for _ in range(10):
+    print(trap.centroid)

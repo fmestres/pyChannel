@@ -1,2 +1,2 @@
 class UndefinedFlowDepthException(Exception):
-    pass
+    '''Property cannot be retrieved because "flow_depth" is not defined"'''
