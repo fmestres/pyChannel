@@ -1,54 +1,61 @@
 from abc import ABC, abstractmethod
-from ast import arg
 from dataclasses import dataclass
 from functools import cached_property
+from multiprocessing.sharedctypes import Value
 import numpy as np
 
 
-@dataclass
 class Section(ABC):
 
     flow_depth: float #Maximum depth of the flow at the cross section
 
-    def _validate_non_negative_input(self, *args, **kwargs):
-        #Checks arguments are non negative
-        if (any([argument < 0 for argument in args]) 
-            or any([value < 0 for _, value in kwargs.items()])):
-            raise ValueError("Section arguments cannot be negative")
+    def __init__(self, flow_depth):
+        self.flow_depth = self._validate_flow_depth(flow_depth)
+
+    def _validate_flow_depth(self, flow_depth: float) -> float:
+        if flow_depth < 0:
+            raise ValueError('"flow_depth" cannot be negative')
+        return flow_depth
 
     @cached_property
     @abstractmethod
     def area(self) -> float:
-        #Cross section area
+        '''Returns cross section area'''
         pass
 
     @cached_property
     @abstractmethod
     def perimeter(self) -> float:
-        #Wet perimeter
+        '''Returns wet perimeter'''
         pass
 
     @cached_property
     @abstractmethod
     def hydraulic_radius(self) -> float:
-        #Quotient of area and perimeter. If peremeter is 0, it returns 0
+        '''Returns quotient of area and perimeter. If peremeter is 0, it returns 0'''
         pass
 
     @cached_property
     @abstractmethod
     def centroid(self) -> tuple[float]:
-        #Returns the tuple: (<x distance from centroid to leftmost point in the section>, <y depth of the centroid>)
+        '''Returns the tuple: (<x distance from centroid to leftmost point in the section>, <y depth of the centroid>)'''
         pass
 
 
-@dataclass
+
 class RectangularSection(Section):
     
-    base_width: float 
+    def __init__(self, base_width: float, flow_depth: float):
+        self.base_width = self._validate_base_width(base_width)
+        self.flow_depth = super()._validate_flow_depth(flow_depth)
 
-    def __init__(self, *args, **kwargs):
-        super()._validate_non_negative_input(*args, **kwargs)
+    #Validators
+    def _validate_base_width(self, base_width: float) -> float:
+        if base_width < 0:
+            raise ValueError('"base_width" cannot be negative')
+        return base_width
 
+    #Properties
     @cached_property
     def area(self) -> float:
         return self.base_width * self.flow_depth
@@ -69,22 +76,18 @@ class RectangularSection(Section):
         return self.base_width / 2, self.flow_depth / 2
 
 
-@dataclass
 class CircularSection(Section):
-    
-    radius: float
 
-    def __init__(self, *args, **kwargs):
-        super()._validate_non_negative_input(*args, **kwargs)
+    def __init__(self, radius: float, flow_depth: float):
+        self.radius = radius
+        self.flow_depth = super()._validate_flow_depth(flow_depth)
+
         if self.flow_depth > 2 * self.radius:
-            raise ValueError('flow_depth cannot be greater than the available height (twice the radius of the cross section)')
-        
-
-    def __post_init__(self) -> None:
+            raise ValueError('"flow_depth" cannot be greater than the available height (twice the radius of the cross section)')
         self._compute_central_angle()  
-
+    
     def _compute_central_angle(self) -> None:
-        #Computes central angle of section. If radius is 0, central angle is set to 0
+        '''Computes central angle of section. If radius is 0, central angle is set to 0'''
         try:
             self.central_angle = 2 * np.arccos((self.radius - self.flow_depth) / self.radius, dtype=float)
         except ZeroDivisionError:
@@ -107,20 +110,29 @@ class CircularSection(Section):
         
     @cached_property
     def centroid(self) -> tuple[float, float]:
-        
         return (self.radius, self.radius)
     
 
-@dataclass
 class TrapezoidalSection(Section):
     
-    base_width: float
-    side_slope_1: float #left
-    side_slope_2: float 
+    def __init__(self, base_width: float, side_slope_1: float, side_slope_2: float, flow_depth: float):
+        self.base_width = self._validate_base_width(base_width)
+        self.side_slope_1 = self._validate_side_slope(side_slope_1)
+        self.side_slope_2 = self._validate_side_slope(side_slope_2)
+        self.flow_depth = super()._validate_flow_depth(flow_depth)
+        
+    #Validators
+    def _validate_base_width(self, base_width: float) -> float:
+        if base_width < 0:
+            raise ValueError('"base_width" cannot be negative')
+        return base_width
 
-    def __init__(self, *args, **kwargs):
-        super()._validate_non_negative_input(*args, **kwargs)
-
+    def _validate_side_slope(self, side_slope: float) -> float:
+        if side_slope < 0:
+            raise ValueError('"side_slope" cannot be negative')
+        return side_slope
+    
+    #Properties
     @cached_property
     def area(self) -> float:
         return (self.base_width + 0.5 * self.flow_depth * (self.side_slope_1 + self.side_slope_2)) * self.flow_depth

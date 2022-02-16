@@ -13,6 +13,10 @@ test_cases_circular_section = [
 test_cases_circular_section_failure = [
     ({'radius': 0, 'flow_depth': 0.00000001}),
     ({'radius': 10, 'flow_depth': 20.0000001}),
+    ({'radius': -10, 'flow_depth': 20.0000001}),
+    ({'radius': 10, 'flow_depth': -19}),
+    ({'radius': -10, 'flow_depth': -20.0000001}),
+    ({'radius': -10, 'flow_depth': 19}),
 ]
 
 @pytest.fixture
