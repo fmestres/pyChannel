@@ -1,9 +1,10 @@
 class UndefinedFlowDepthException(Exception):
     '''Property cannot be retrieved because "flow_depth" is not defined"'''
     pass
-class UnavailableHeightException(Exception):
-    '''flow_depth greater than the available height has been set to the section'''
-    pass
+class UnavailableHeightException(ValueError):
+    '''flow_depth greater than the available height has been set to the section'''  
+    def __init__(self, message: str):
+        self.message = message
 
 class InvalidPropertyValueError(ValueError):
     '''Section property is not a valid value'''

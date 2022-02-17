@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Optional
-import numpy as np
-from exceptions import UndefinedFlowDepthException, InvalidPropertyValueError
-
+from .exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
+import math
 
 class Section(ABC):
 
@@ -11,10 +10,6 @@ class Section(ABC):
     _perimeter: Optional[float] = None 
     _hydraulic_radius: Optional[float] = None   
     _centroid: Optional[tuple[float, float]] = None
-
-    def __init__(self):
-        #for tests to keep expecting args
-        ...
 
     def __repr__(self) -> str:
         '''Returns string with format:
@@ -80,7 +75,7 @@ class Section(ABC):
 
     @flow_depth.setter
     def flow_depth(self, _value: float) -> None:
-        self._flow_depth = self._validate_flow_depth(_value)
+        self._flow_depth = self._validate_flow_depth(_value) #If instance does not have a defined validator, it calls superclass validator
         self._clean_cache()
 
     @property
@@ -103,7 +98,7 @@ class Section(ABC):
 
     @property
     def centroid(self) -> tuple[float, float]:
-        '''Returns the tuple: (<x distance from centroid to leftmost point in the section>, <y depth of the centroid>)'''
+        '''Returns the tuple: (<x distance from centroid to leftmost point (or its extension) in the section>, <y depth of the centroid>)'''
         self._centroid = self._get_cached_property_or_compute(self._centroid, self._compute_centroid)
         return self._centroid
 
@@ -139,6 +134,7 @@ class RectangularSection(Section):
 class CircularSection(Section):
 
     _central_angle: Optional[float]
+    _radius: float
 
     def __init__(self, radius: float, flow_depth: float=None):
         self.radius = radius
@@ -152,52 +148,66 @@ class CircularSection(Section):
     def _compute_central_angle(self) -> float:
         '''Computes central angle of section. If radius is 0, central angle is set to 0'''
         try:
-            return 2 * np.arccos((self.radius - self.flow_depth) / self.radius, dtype=float)
+            return 2 * math.acos((self.radius - self.flow_depth) / self.radius)
         except ZeroDivisionError:
             return 0
 
     #Validators
-    def _validate_radius(self, radius: float) -> float:
-        if radius < 0:
+    def _validate_radius(self, _radius: float) -> float:
+        if _radius < 0:
             raise InvalidPropertyValueError(
-                radius,
+                _radius,
                 '"radius" cannot be negative'
                 )
         self._clean_cache()
-        return radius
+        return _radius
 
     def _validate_flow_depth(self, flow_depth: Optional[float]) -> float:
         flow_depth = super()._validate_flow_depth(flow_depth)
         if flow_depth > 2 * self.radius:
-            raise InvalidPropertyValueError(
-                flow_depth,
+            raise UnavailableHeightException(
                 '"flow_depth" cannot be greater than the available height (twice the radius of the cross section)'
                 )
         return flow_depth
+    
+    #Class-specific properties
+    @property
+    def radius(self):
+        return self._radius
+    
+    @radius.setter
+    def radius(self, _radius):
+        self._radius = self._validate_radius(_radius)
 
     #Class-specific implementations
     def _compute_area(self) -> float:
         if self._central_angle is None:
             self._central_angle = self._compute_central_angle()
-        return 0.5 * self.radius ** 2 * (self._central_angle - np.sin(self._central_angle, dtype=float))
+        return 0.5 * self.radius ** 2 * (self._central_angle - math.sin(self._central_angle))
 
     def _compute_perimeter(self) -> float:
         if self._central_angle is None:
             self._central_angle = self._compute_central_angle()
-        return 0.5 / np.pi * self._central_angle * self.radius
+        return 0.5 / math.pi * self._central_angle * self.radius
 
     def _compute_centroid(self) -> tuple[float, float]:
         if self._central_angle is None:
             self._central_angle = self._compute_central_angle()
-        raise NotImplementedError()
 
+        radius = self.radius
+        central_angle = self._central_angle
+        try:
+            y_coord = self.flow_depth - radius + 4 / 3 * radius * (math.sin(central_angle / 2) ** 3 / (central_angle - math.sin(central_angle)))
+        except ZeroDivisionError:
+            y_coord = 0
+        return radius, y_coord
 
 class TrapezoidalSection(Section):
     
     def __init__(self, base_width: float, side_slope_1: float, side_slope_2: float, flow_depth: float=None):
-        self.base_width = self._validate_base_width(base_width)
-        self.side_slope_1 = self._validate_side_slope(side_slope_1)
-        self.side_slope_2 = self._validate_side_slope(side_slope_2)
+        self.base_width = base_width
+        self.side_slope_1 = side_slope_1
+        self.side_slope_2 = side_slope_2
         if flow_depth is not None:
             self.flow_depth = flow_depth
 
@@ -220,7 +230,30 @@ class TrapezoidalSection(Section):
         self._clean_cache()
         return side_slope
 
-    #Properties
+    #Class-specific Properties
+    @property
+    def base_width(self) -> float:
+        return self._base_width
+    
+    @base_width.setter
+    def base_width(self, _base_width: float):
+        self._base_width = self._validate_base_width(_base_width)
+
+    @property
+    def side_slope_1(self) -> float:
+        return self._side_slope_1
+    
+    @side_slope_1.setter
+    def side_slope_1(self, _side_slope_1: float):
+        self._side_slope_1 = self._validate_side_slope(_side_slope_1)
+
+    @property
+    def side_slope_2(self) -> float:
+        return self._side_slope_2
+    
+    @side_slope_2.setter
+    def side_slope_2(self, _side_slope_2: float):
+        self._side_slope_2 = self._validate_side_slope(_side_slope_2)
 
     #Class-specific implementations
     def _compute_area(self):
@@ -232,16 +265,28 @@ class TrapezoidalSection(Section):
     def _compute_centroid(self):
         if self.area == 0:
             return (0, 0)
-        rectangle_area = self.base_width * self.flow_depth
-        left_triangle_area = 0.5 * self.side_slope_1 * self.flow_depth ** 2
-        right_triangle_area = 0.5 * self.side_slope_2 * self.flow_depth ** 2
-        left_triangle_centroid_distance = 2 / 3 * self.side_slope_1 * self.flow_depth 
-        rectangle_centroid_distance = left_triangle_centroid_distance + self.base_width * 0.5
-        right_triangle_centroid_distance = rectangle_centroid_distance + 2 / 3 * self.side_slope_2 * self.flow_depth 
 
-        x_sum = left_triangle_area * left_triangle_centroid_distance + rectangle_area * rectangle_centroid_distance + right_triangle_area * right_triangle_centroid_distance
+        side_slope_1 = self.side_slope_1
+        side_slope_2 = self.side_slope_2
+        flow_depth = self.flow_depth
+        base_width = self.base_width
+        
+        left_triangle_base = side_slope_1 * flow_depth
+        right_triangle_base = side_slope_2 * flow_depth
+
+        rectangle_area = base_width * flow_depth
+        left_triangle_area = 0.5 * left_triangle_base * flow_depth 
+        right_triangle_area = 0.5 * right_triangle_base * flow_depth
+        left_triangle_centroid_distance = 2 / 3 * left_triangle_base 
+        rectangle_centroid_distance = left_triangle_base + base_width * 0.5
+        right_triangle_centroid_distance = left_triangle_base + base_width + 1 / 3 * right_triangle_base 
+
+        x_sum = left_triangle_area * left_triangle_centroid_distance        \
+                + rectangle_area * rectangle_centroid_distance              \
+                + right_triangle_area * right_triangle_centroid_distance
+
         x_coord = x_sum / self.area
 
-        surface_width = self.base_width + self.flow_depth * (self.side_slope_1 + self.side_slope_2)
-        y_coord = self.flow_depth * (2 * self.base_width + surface_width) / (3 * (self.base_width + surface_width))
+        surface_width = base_width + left_triangle_base + right_triangle_base
+        y_coord = flow_depth * (2 * base_width + surface_width) / (3 * (base_width + surface_width))
         return x_coord, y_coord
