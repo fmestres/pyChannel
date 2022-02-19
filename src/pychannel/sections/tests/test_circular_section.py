@@ -1,3 +1,4 @@
+from re import A
 import pytest
 from sections.exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
 from .factories import make_circular_section
@@ -21,18 +22,22 @@ def test_unavailable_height_exception(make_circular_section, test_input):
     with pytest.raises(Exception):
         make_circular_section(*test_input)
 
-
-@pytest.mark.skip #Not set up yet
+#@pytest.mark.skip #Not set up yet
 @pytest.mark.parametrize('test_input, expected_values', input_output_test_cases)
 def test_section_output(make_circular_section, test_input, expected_values):
     test_section = make_circular_section(*test_input)
     for _property, expected_value in zip(SECTION_PROPERTIES, expected_values):
-        assert getattr(test_section, _property) == pytest.approx(expected_value)
+        assert getattr(test_section, _property) == pytest.approx(expected_value) #Check why it does not pass
 
-@pytest.mark.skip #Not set up yet
 @pytest.mark.parametrize('test_input', input_output_test_cases)
 def test_runtime_exceptions(make_circular_section, test_input):
     test_section = make_circular_section(*test_input[0])
     for _attribute in CIRCULAR_SECTION_ATTRIBUTES:
         with pytest.raises(InvalidPropertyValueError):
             setattr(test_section, _attribute, -1)
+        with pytest.raises(UnavailableHeightException):
+            radius = test_section.radius
+            impossible_depth = 2.000001 * radius if radius != 0 else 0.000001 #A bit more than the available height
+
+            setattr(test_section, 'flow_depth', impossible_depth)
+

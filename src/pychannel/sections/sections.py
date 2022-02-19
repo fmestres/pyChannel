@@ -188,7 +188,7 @@ class CircularSection(Section):
     def _compute_perimeter(self) -> float:
         if self._central_angle is None:
             self._central_angle = self._compute_central_angle()
-        return 0.5 / math.pi * self._central_angle * self.radius
+        return self._central_angle * self.radius
 
     def _compute_centroid(self) -> tuple[float, float]:
         if self._central_angle is None:
@@ -290,3 +290,4 @@ class TrapezoidalSection(Section):
         surface_width = base_width + left_triangle_base + right_triangle_base
         y_coord = flow_depth * (2 * base_width + surface_width) / (3 * (base_width + surface_width))
         return x_coord, y_coord
+        

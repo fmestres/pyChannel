@@ -39,5 +39,3 @@ input_output_test_cases = [
         (25, 14.142135, 1.767767, (5, 1.666667), 5)
     )
 ]
-
-runtime_exceptions_test_cases = []
