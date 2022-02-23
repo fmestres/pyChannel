@@ -1,6 +1,5 @@
-from re import A
 import pytest
-from sections.exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
+from exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
 from .factories import make_circular_section
 from .constants import CIRCULAR_SECTION_ATTRIBUTES, SECTION_PROPERTIES
 from .cases_circular import *
@@ -19,7 +18,7 @@ def test_undefined_flow_depth_exception(make_circular_section, test_input):
 
 @pytest.mark.parametrize('test_input', unavailable_height_test_cases)
 def test_unavailable_height_exception(make_circular_section, test_input):
-    with pytest.raises(Exception):
+    with pytest.raises(UnavailableHeightException):
         make_circular_section(*test_input)
 
 #@pytest.mark.skip #Not set up yet

@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Optional
-from .exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
+from typing import Any, Optional
 import math
+
+from exceptions import UndefinedFlowDepthException, InvalidPropertyValueError, UnavailableHeightException
+
 
 class Section(ABC):
 
@@ -26,7 +28,7 @@ class Section(ABC):
         self._hydraulic_radius = None
         self._centroid = None
 
-    def _get_cached_property_or_compute(self, _property: Any, _compute_function: Callable) -> Any:
+    def _get_cached_property_or_compute(self, _property: Any, _compute_function) -> Any:
         '''Returns cached value for _property. If nothing is cached, then it calculates'''
         if _property is None:
             _property = _compute_function()
@@ -290,4 +292,4 @@ class TrapezoidalSection(Section):
         surface_width = base_width + left_triangle_base + right_triangle_base
         y_coord = flow_depth * (2 * base_width + surface_width) / (3 * (base_width + surface_width))
         return x_coord, y_coord
-        
+    

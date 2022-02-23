@@ -1,5 +1,5 @@
 import pytest
-from sections.exceptions import UndefinedFlowDepthException, InvalidPropertyValueError
+from exceptions import UndefinedFlowDepthException, InvalidPropertyValueError
 from .factories import make_trapezoidal_section
 from .constants import SECTION_PROPERTIES, TRAPEZOIDAL_SECTION_ATTRIBUTES
 from .cases_trapezoidal import *
